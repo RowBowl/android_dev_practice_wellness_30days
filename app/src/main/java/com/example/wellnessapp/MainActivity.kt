@@ -38,7 +38,9 @@ import com.example.wellnessapp.ui.theme.WellnessAppTheme
  * Animations: After all parts of the design are programmed into the app, I will add animations
  * to expand or collapse the card element information. Or maybe a "tap to reveal" feature.
  *
- *
+ * **** Furthermore, when the user drags the screen vertically, the individual items of the
+ * lazy list should shrink (and perhaps the parent as well), to show a kind of "spinning wheel"
+ * selector.
  */
 
 
