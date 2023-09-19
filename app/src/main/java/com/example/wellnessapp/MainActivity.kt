@@ -3,10 +3,27 @@ package com.example.wellnessapp
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.wellnessapp.ui.theme.WellnessAppTheme
 
 
@@ -41,6 +58,10 @@ import com.example.wellnessapp.ui.theme.WellnessAppTheme
  * **** Furthermore, when the user drags the screen vertically, the individual items of the
  * lazy list should shrink (and perhaps the parent as well), to show a kind of "spinning wheel"
  * selector.
+ *
+ *
+ * Bottom app bar included. It will include icon buttons to apply things to currently viewing
+ * item. Buttons for "Mark as done", or perhaps editing.
  */
 
 
@@ -56,8 +77,108 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    WellnessApp()
                 }
             }
+        }
+    }
+}
+
+@Preview
+@Composable
+fun WellnessAppPreview() {
+    WellnessAppTheme (useDarkTheme = false) {
+        WellnessApp()
+    }
+}
+
+@Preview
+@Composable
+fun WellnessAppDarkThemePreview() {
+    WellnessAppTheme (useDarkTheme = true) {
+        WellnessApp()
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WellnessApp() {
+    Scaffold (
+        topBar = {
+            TopAppBar(
+                title = { Text(
+                    text = "30 Day Wellness",
+                    style = MaterialTheme.typography.titleLarge)
+                },
+                colors = TopAppBarDefaults.smallTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                )
+            )
+        },
+        bottomBar = {
+            BottomAppBar (
+                containerColor = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.onBackground
+            ) {
+
+            }
+        }
+    ) {innerPadding ->
+        Column (
+            modifier = Modifier
+                .fillMaxSize()
+                //needed so last item not cut off by bottom bar
+                .padding(
+                    top = innerPadding.calculateTopPadding(),
+                    bottom = innerPadding.calculateBottomPadding(),
+                    start = 24.dp,
+                    end = 24.dp
+                )
+        ) {
+            MotivationalList("Hello World",
+                modifier = Modifier)
+        }
+
+    }
+}
+
+@Composable
+fun MotivationalList(displayString: String, modifier: Modifier = Modifier) {
+    val listState = rememberLazyListState()
+    LazyColumn(
+        state = listState,
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        items(30) {index ->
+            MotivationalCard(index,
+                Modifier
+                    .fillParentMaxHeight(if(listState.isScrollInProgress) 0.25f else 1f)
+                    .animateContentSize()
+            )
+        }
+    }
+}
+
+@Composable
+fun MotivationalCard(index: Int, modifier: Modifier = Modifier) {
+    Card (modifier = modifier) {
+        Column (
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                "Title: Index #${index + 1}",
+                style = MaterialTheme.typography.displayLarge
+            )
+            Text(
+                stringResource(R.string.motivational_card_body_example),
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
 }

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Wellness App</string>
+    <string name="motivational_card_body_example">Here is an example that shows how the PaddingValues parameter is passed into your content when the bottomBar uses a BottomAppBar. It displays a list of 50 items. When the padding is added to the Column, you can scroll to the bottom and see the last item.</string>
 </resources>
