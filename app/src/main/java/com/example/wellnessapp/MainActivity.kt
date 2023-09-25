@@ -4,23 +4,33 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.BottomAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -116,23 +126,15 @@ fun WellnessApp() {
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
-        },
-        bottomBar = {
-            BottomAppBar (
-                containerColor = MaterialTheme.colorScheme.background,
-                contentColor = MaterialTheme.colorScheme.onBackground
-            ) {
-
-            }
         }
     ) {innerPadding ->
-        Column (
+        OutlinedCard (
             modifier = Modifier
                 .fillMaxSize()
                 //needed so last item not cut off by bottom bar
                 .padding(
                     top = innerPadding.calculateTopPadding(),
-                    bottom = innerPadding.calculateBottomPadding(),
+                    bottom = 24.dp,
                     start = 24.dp,
                     end = 24.dp
                 )
@@ -145,17 +147,40 @@ fun WellnessApp() {
 }
 
 @Composable
+fun BottomButtonRow(modifier: Modifier = Modifier) {
+    OutlinedCard (
+        modifier = modifier
+    ) {
+        Row (
+            modifier = Modifier
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(Icons.Outlined.Check, contentDescription = "Mark Complete Icon",
+                modifier = Modifier.size(36.dp))
+            Icon(Icons.Outlined.Star, contentDescription = "Mark Favorite Icon",
+                modifier = Modifier.size(36.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 fun MotivationalList(displayString: String, modifier: Modifier = Modifier) {
     val listState = rememberLazyListState()
+    val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
     LazyColumn(
         state = listState,
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        modifier = modifier
+            .scale(if (listState.isScrollInProgress) 0.9f else 1f)
+            .animateContentSize(),
+        flingBehavior = flingBehavior,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         items(30) {index ->
             MotivationalCard(index,
                 Modifier
-                    .fillParentMaxHeight(if(listState.isScrollInProgress) 0.25f else 1f)
+                    .fillParentMaxHeight()
                     .animateContentSize()
             )
         }
@@ -171,14 +196,26 @@ fun MotivationalCard(index: Int, modifier: Modifier = Modifier) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                "Title: Index #${index + 1}",
-                style = MaterialTheme.typography.displayLarge
-            )
-            Text(
-                stringResource(R.string.motivational_card_body_example),
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Column (
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    "Title: Index #${index + 1}",
+                    style = MaterialTheme.typography.displayLarge,
+                )
+                Text(
+                    stringResource(R.string.motivational_card_body_example),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+
+                )
+            }
+
+            Row (
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) {
+                BottomButtonRow()
+            }
         }
     }
 }

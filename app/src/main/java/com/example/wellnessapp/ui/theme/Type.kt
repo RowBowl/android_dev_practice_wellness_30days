@@ -22,7 +22,7 @@ val Roboto = FontFamily(
 // Set of Material typography styles to start with
 val Typography = Typography(
     titleLarge = TextStyle(
-        fontFamily = NunitoSans,
+        fontFamily = Roboto,
         fontWeight = FontWeight.Bold,
         fontSize = 32.sp,
     ),
@@ -34,7 +34,7 @@ val Typography = Typography(
     bodyLarge = TextStyle(
         fontFamily = Roboto,
         fontWeight = FontWeight.Light,
-        fontSize = 14.sp
+        fontSize = 20.sp
     ),
     bodyMedium = TextStyle(
         fontFamily = Roboto,
