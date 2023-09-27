@@ -17,8 +17,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -43,6 +45,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.example.wellnessapp.ui.theme.WellnessAppTheme
 import kotlinx.coroutines.launch
 
@@ -136,11 +139,18 @@ fun WellnessApp() {
         currentCardState = !currentCardState
     }
 
+    var showDialog by remember { mutableStateOf(false) }
+    var onToggleDialog = { showDialog = !showDialog }
+
+    if(showDialog)
+        HelpDialog(onDismissRequest = onToggleDialog)
+
     Scaffold (
         topBar = {
             WellnessAppTopBar(
                 currentCardState = currentCardState,
-                onClick = onExpandableButtonClick
+                onClick = onExpandableButtonClick,
+                onHelp = onToggleDialog
             )
         }
     ) {innerPadding ->
@@ -164,11 +174,29 @@ fun WellnessApp() {
     }
 }
 
+@Composable
+fun HelpDialog(onDismissRequest: () -> Unit) {
+    Dialog(onDismissRequest = onDismissRequest) {
+        Card(
+            modifier = Modifier
+                .size(200.dp)
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Text("Test")
+        }
+
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WellnessAppTopBar(currentCardState: ExpandableCardState,
-                      onClick: () -> Unit,
-                      modifier: Modifier = Modifier) {
+fun WellnessAppTopBar(
+    currentCardState: ExpandableCardState,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onHelp: () -> Unit
+) {
     TopAppBar(modifier = modifier,
         title = {
             Text(
@@ -188,7 +216,7 @@ fun WellnessAppTopBar(currentCardState: ExpandableCardState,
                             contentDescription = "Collapse All Cards")
                 }
             }
-            IconButton(onClick = { /*TODO*/ }) {
+            IconButton(onClick = onHelp) {
                 Icon(painter = painterResource(id = R.drawable.help_24px),
                     contentDescription = "Help")
             }
@@ -232,12 +260,11 @@ fun MotivationalList(currentCardState: ExpandableCardState,
             MotivationalCard(
                 index,
                 currentState = currentCardState,
-                onCollapsedClick = {
-                    if(!currentCardState.isExpanded) {
-                        coroutineScope.launch {
+                onCardClick = {
+                    coroutineScope.launch {
+                        if(listState.firstVisibleItemIndex != index)
                             listState.animateScrollToItem(index)
-                            onCardExpandClick.invoke()
-                        }
+                        onCardExpandClick.invoke()
                     }
                 },
                 modifier = Modifier.fillHeightConditionally(currentCardState.isExpanded){
@@ -256,12 +283,12 @@ private fun Modifier.fillHeightConditionally(isExpanded: Boolean,
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MotivationalCard(index: Int, currentState: ExpandableCardState, onCollapsedClick: () -> Unit, modifier: Modifier = Modifier) {
+fun MotivationalCard(index: Int, currentState: ExpandableCardState, onCardClick: () -> Unit, modifier: Modifier = Modifier) {
 
     Card (
         modifier = modifier
             .padding(16.dp),
-        onClick = onCollapsedClick
+        onClick = onCardClick
     ) {
         Column (
             modifier = Modifier
