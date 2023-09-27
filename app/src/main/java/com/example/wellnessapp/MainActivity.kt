@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -43,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.example.wellnessapp.ui.theme.WellnessAppTheme
+import kotlinx.coroutines.launch
 
 
 /** App Design Notes
@@ -154,6 +156,7 @@ fun WellnessApp() {
         ) {
             MotivationalList(
                 currentCardState = currentCardState,
+                onExpandableButtonClick,
                 modifier = Modifier
             )
         }
@@ -202,6 +205,7 @@ fun WellnessAppTopBar(currentCardState: ExpandableCardState,
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MotivationalList(currentCardState: ExpandableCardState,
+                     onCardExpandClick: () -> Unit,
                      modifier: Modifier = Modifier) {
 
     val listState = rememberLazyListState()
@@ -214,7 +218,7 @@ fun MotivationalList(currentCardState: ExpandableCardState,
     }
     val snappingLayout = remember(listState) { SnapLayoutInfoProvider(lazyListState = listState, positionInLayout = positionInLayout) }
     val flingBehavior = rememberSnapFlingBehavior(snappingLayout)
-
+    val coroutineScope = rememberCoroutineScope()
 
     LazyColumn(
         state = listState,
@@ -224,9 +228,18 @@ fun MotivationalList(currentCardState: ExpandableCardState,
         flingBehavior = flingBehavior,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        items(30) {
+        items(30) {index ->
             MotivationalCard(
+                index,
                 currentState = currentCardState,
+                onCollapsedClick = {
+                    if(!currentCardState.isExpanded) {
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(index)
+                            onCardExpandClick.invoke()
+                        }
+                    }
+                },
                 modifier = Modifier.fillHeightConditionally(currentCardState.isExpanded){
                     fillParentMaxHeight()
                 }
@@ -241,12 +254,14 @@ private fun Modifier.fillHeightConditionally(isExpanded: Boolean,
         this.fillParentMaxHeight() else this
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MotivationalCard(currentState: ExpandableCardState, modifier: Modifier = Modifier) {
+fun MotivationalCard(index: Int, currentState: ExpandableCardState, onCollapsedClick: () -> Unit, modifier: Modifier = Modifier) {
 
     Card (
         modifier = modifier
-            .padding(16.dp)
+            .padding(16.dp),
+        onClick = onCollapsedClick
     ) {
         Column (
             modifier = Modifier
@@ -254,11 +269,13 @@ fun MotivationalCard(currentState: ExpandableCardState, modifier: Modifier = Mod
             Row (
                 modifier = Modifier.height(80.dp)
             ) {
-                Spacer(modifier = Modifier
+                Box(modifier = Modifier
                     .fillMaxSize()
                     .weight(3f)
                     .background(Color.Blue)
-                )
+                ) {
+                    Text(text = "Index: $index")
+                }
                 Spacer(modifier = Modifier
                     .fillMaxSize()
                     .weight(1f)
