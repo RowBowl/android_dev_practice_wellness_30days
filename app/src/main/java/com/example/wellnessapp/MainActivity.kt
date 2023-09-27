@@ -4,19 +4,25 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -28,8 +34,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -76,7 +87,14 @@ import com.example.wellnessapp.ui.theme.WellnessAppTheme
 
 
 
+enum class ArrowState(val isExpanded: Boolean) {
+    Down(true),
+    Up(false);
 
+    operator fun not(): ArrowState {
+        return if(this.isExpanded) ArrowState.Up else ArrowState.Down
+    }
+}
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -146,8 +164,126 @@ fun WellnessApp() {
     }
 }
 
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun BottomButtonRow(modifier: Modifier = Modifier) {
+fun MotivationalList(displayString: String, modifier: Modifier = Modifier) {
+
+    val listState = rememberLazyListState()
+    val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+    var currentState by remember { mutableStateOf(ArrowState.Down) }
+
+    LazyColumn(
+        state = listState,
+        modifier = modifier
+            .scale(if (listState.isScrollInProgress && currentState.isExpanded) 0.9f else 1f)
+            .animateContentSize(),
+        flingBehavior = flingBehavior,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        items(30) {index ->
+            MotivationalCard(
+                index = index,
+                currentState = currentState,
+                onClick = {
+                    currentState = !currentState
+                },
+                modifier = Modifier
+                    .conditional(currentState.isExpanded) {
+                        fillParentMaxHeight()
+                    }
+                    .conditional(!currentState.isExpanded) {
+                        wrapContentHeight()
+                    }
+                    .animateContentSize()
+            )
+        }
+    }
+}
+
+
+@Composable
+fun MotivationalCard(index: Int, currentState: ArrowState,
+    onClick: () -> Unit, modifier: Modifier = Modifier) {
+
+    Card (modifier = modifier) {
+        when(currentState) {
+            ArrowState.Down -> {
+                Column (
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Column (
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            "Title: Index #${index + 1}",
+                            style = MaterialTheme.typography.displayLarge,
+                        )
+                        Text(
+                            stringResource(R.string.motivational_card_body_example),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f)
+
+                        )
+                    }
+
+                    Row (
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        BottomButtonRow(currentState,
+                            onClick)
+                    }
+                }
+            }
+            ArrowState.Up -> {
+                Row (
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .align(Alignment.CenterHorizontally),
+                ) {
+                    Text(
+                        "Title: Index #${index + 1}",
+                        style = MaterialTheme.typography.displayLarge,
+                    )
+                    Row (
+                        modifier = Modifier
+                    ) {
+                        BottomButtonRow(currentState,
+                            onClick = onClick)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CollapsableCard(currentState: ArrowState, cardTitle: String, onClick: () -> Unit) {
+
+
+}
+@Composable
+fun CollapsedCard() {
+    TODO("Not yet implemented")
+}
+
+
+
+@Composable
+fun BottomButtonRow(currentState: ArrowState, onClick: () -> Unit, modifier: Modifier = Modifier) {
+
+    val transition = updateTransition(currentState, label = "Arrow State")
+    val rotation by transition.animateFloat(label = "rotation") {state ->
+        when(state) {
+            ArrowState.Down -> 0f
+            ArrowState.Up -> -180f
+        }
+    }
+
     OutlinedCard (
         modifier = modifier
     ) {
@@ -160,62 +296,24 @@ fun BottomButtonRow(modifier: Modifier = Modifier) {
                 modifier = Modifier.size(36.dp))
             Icon(Icons.Outlined.Star, contentDescription = "Mark Favorite Icon",
                 modifier = Modifier.size(36.dp))
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun MotivationalList(displayString: String, modifier: Modifier = Modifier) {
-    val listState = rememberLazyListState()
-    val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
-    LazyColumn(
-        state = listState,
-        modifier = modifier
-            .scale(if (listState.isScrollInProgress) 0.9f else 1f)
-            .animateContentSize(),
-        flingBehavior = flingBehavior,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        items(30) {index ->
-            MotivationalCard(index,
-                Modifier
-                    .fillParentMaxHeight()
-                    .animateContentSize()
-            )
-        }
-    }
-}
-
-@Composable
-fun MotivationalCard(index: Int, modifier: Modifier = Modifier) {
-    Card (modifier = modifier) {
-        Column (
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Column (
-                modifier = Modifier.weight(1f)
+            Button(
+               onClick = onClick
             ) {
-                Text(
-                    "Title: Index #${index + 1}",
-                    style = MaterialTheme.typography.displayLarge,
-                )
-                Text(
-                    stringResource(R.string.motivational_card_body_example),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.weight(1f)
-
+                Icon(Icons.Outlined.ArrowDropDown, contentDescription = "Mark Favorite Icon",
+                    modifier = Modifier
+                        .size(36.dp)
+                        .rotate(rotation)
                 )
             }
-
-            Row (
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            ) {
-                BottomButtonRow()
-            }
         }
     }
 }
+
+fun Modifier.conditional(condition : Boolean, modifier : Modifier.() -> Modifier) : Modifier {
+    return if (condition) {
+        then(modifier(Modifier))
+    } else {
+        this
+    }
+}
+
