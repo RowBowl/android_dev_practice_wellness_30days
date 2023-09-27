@@ -3,6 +3,7 @@ package com.example.wellnessapp
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.updateTransition
@@ -10,12 +11,15 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -133,7 +137,7 @@ fun WellnessAppDarkThemePreview() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WellnessApp() {
-    var currentCardState by remember { mutableStateOf(ExpandableCardState.Collapsed) }
+    var currentCardState by remember { mutableStateOf(ExpandableCardState.Expanded) }
     var onExpandableButtonClick = {
         currentCardState = !currentCardState
     }
@@ -222,18 +226,18 @@ fun MotivationalList(currentCardState: ExpandableCardState,
         items(30) {
             MotivationalCard(
                 currentState = currentCardState,
-                modifier = Modifier
-                    .conditional(currentCardState.isExpanded) {
-                        fillParentMaxHeight()
-                    }
-                    .conditional(!currentCardState.isExpanded) {
-                        height(100.dp)
-                    }
-                    .animateContentSize()
+                modifier = Modifier.fillHeightConditionally(currentCardState.isExpanded){
+                    fillParentMaxHeight()
+                }
             )
         }
     }
 }
+
+private fun Modifier.fillHeightConditionally(isExpanded: Boolean,
+                                             fillParentMaxHeight: Modifier.() -> Modifier ): Modifier =
+    if(isExpanded)
+        this.fillParentMaxHeight() else this
 
 
 @Composable
@@ -243,65 +247,34 @@ fun MotivationalCard(currentState: ExpandableCardState, modifier: Modifier = Mod
         modifier = modifier
             .padding(16.dp)
     ) {
-        when (currentState) {
-            ExpandableCardState.Expanded -> {
-
-            }
-
-            ExpandableCardState.Collapsed -> {
-                Row {
-                    Spacer(modifier = Modifier
-                        .fillMaxSize()
-                        .weight(3f)
-                        .background(Color.Blue)
-                    )
-                    Spacer(modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f)
-                        .background(Color.Red)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun BottomButtonRow(currentState: ExpandableCardState, onClick: () -> Unit, modifier: Modifier = Modifier) {
-
-    val transition = updateTransition(currentState, label = "Arrow State")
-    val rotation by transition.animateFloat(label = "rotation") {state ->
-        when(state) {
-            ExpandableCardState.Expanded -> 0f
-            ExpandableCardState.Collapsed -> -180f
-        }
-    }
-
-    OutlinedCard (
-        modifier = modifier
-    ) {
-        Row (
+        Column (
             modifier = Modifier
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(Icons.Outlined.Check, contentDescription = "Mark Complete Icon",
-                modifier = Modifier.size(36.dp))
-            Icon(Icons.Outlined.Star, contentDescription = "Mark Favorite Icon",
-                modifier = Modifier.size(36.dp))
-            Button(
-               onClick = onClick
+            Row (
+                modifier = Modifier.height(100.dp)
             ) {
-                Icon(Icons.Outlined.ArrowDropDown, contentDescription = "Mark Favorite Icon",
-                    modifier = Modifier
-                        .size(36.dp)
-                        .rotate(rotation)
+                Spacer(modifier = Modifier
+                    .fillMaxSize()
+                    .weight(3f)
+                    .background(Color.Blue)
+                )
+                Spacer(modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+                    .background(Color.Red)
                 )
             }
+            AnimatedVisibility(visible = currentState.isExpanded) {
+                Box(modifier = Modifier) {
+                    Spacer(modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Yellow))
+                }
+            }
+
         }
     }
 }
-
 fun Modifier.conditional(condition : Boolean, modifier : Modifier.() -> Modifier) : Modifier {
     return if (condition) {
         then(modifier(Modifier))
