@@ -3,24 +3,25 @@ package com.example.wellnessapp
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -33,17 +34,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.wellnessapp.ui.theme.WellnessAppTheme
@@ -89,12 +92,17 @@ import kotlinx.coroutines.launch
 
 
 
-enum class ExpandableCardState(val isExpanded: Boolean) {
-    Expanded(true),
-    Collapsed(false);
+enum class ExpandableCardState(val expandedAmount: Float) {
+    Expanded(1f),
+    Halfway(0.5f),
+    Collapsed(0f);
 
-    operator fun not(): ExpandableCardState {
-        return if(this.isExpanded) ExpandableCardState.Collapsed else ExpandableCardState.Expanded
+    override fun toString(): String {
+        return when(this) {
+            Expanded -> "Expanded"
+            Halfway -> "Halfway"
+            Collapsed -> "Collapsed"
+        }
     }
 }
 class MainActivity : ComponentActivity() {
@@ -134,13 +142,12 @@ fun WellnessAppDarkThemePreview() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WellnessApp() {
-    var currentCardState by remember { mutableStateOf(ExpandableCardState.Expanded) }
-    var onExpandableButtonClick = {
-        currentCardState = !currentCardState
-    }
 
+    val listState = rememberLazyListState()
     var showDialog by remember { mutableStateOf(false) }
+    var allCollapsed by remember { mutableStateOf(false) }
     var onToggleDialog = { showDialog = !showDialog }
+    var onCollapse = {allCollapsed = !allCollapsed}
 
     if(showDialog)
         HelpDialog(onDismissRequest = onToggleDialog)
@@ -148,9 +155,9 @@ fun WellnessApp() {
     Scaffold (
         topBar = {
             WellnessAppTopBar(
-                currentCardState = currentCardState,
-                onClick = onExpandableButtonClick,
-                onHelp = onToggleDialog
+                collapseState = allCollapsed,
+                onHelp = onToggleDialog,
+                onCollapse = onCollapse
             )
         }
     ) {innerPadding ->
@@ -164,15 +171,149 @@ fun WellnessApp() {
                     end = 24.dp
                 )
         ) {
+            Text("All COllapsed: $allCollapsed")
+
             MotivationalList(
-                currentCardState = currentCardState,
-                onExpandableButtonClick,
+                listState = listState,
+                isAllCollapsed = allCollapsed,
+                onCollapse = onCollapse,
                 modifier = Modifier
             )
         }
 
     }
 }
+
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun MotivationalList(listState: LazyListState = rememberLazyListState(),
+                     isAllCollapsed: Boolean,
+                     modifier: Modifier = Modifier,
+                     onCollapse: () -> Unit) {
+
+    //val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+
+    val centerIndex by remember {
+        derivedStateOf {
+            listState.layoutInfo.visibleItemsInfo.run {
+                val firstVisibleIndex = listState.firstVisibleItemIndex
+                if(isEmpty()) -1 else firstVisibleIndex + (last().index - firstVisibleIndex) / 2
+            }
+        }
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = modifier,
+        flingBehavior = rememberSnapFlingBehavior(lazyListState = listState),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+
+        items(30) {index ->
+
+            val isCenterItem by remember {
+                derivedStateOf {
+                    index == centerIndex
+                }
+            }
+            val currentExpandableState by remember {
+                //TODO: Calculation of center is happening after state is changed to Halfway
+                derivedStateOf {
+                    if(isAllCollapsed)
+                        ExpandableCardState.Collapsed
+                    else{
+                        if(listState.isScrollInProgress){
+                            ExpandableCardState.Halfway
+                        }
+                        else if(isCenterItem)
+                            ExpandableCardState.Expanded
+                        else
+                            ExpandableCardState.Collapsed
+                    }
+                }
+            }
+            val scale by animateFloatAsState(targetValue = if(isCenterItem) 1.1f else 1f, label = "")
+
+            MotivationalCard(
+                index,
+                listState,
+                currentExpandableState,
+                isCenterItem,
+                onCardClick = {
+                    coroutineScope.launch {
+                        listState.animateScrollToItem(
+                            if (isAllCollapsed)
+                                index - 4 //TODO: play around with offset
+                            else
+                                index - 1
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .scale(scale = scale)
+            )
+        }
+    }
+}
+
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MotivationalCard(index: Int, listState: LazyListState,
+                     currentExpandableState: ExpandableCardState,
+                     isCenterItem: Boolean,
+                     onCardClick: () -> Unit,
+                     modifier: Modifier = Modifier) {
+
+    Card (
+        modifier = modifier
+            .padding(16.dp)
+            .border(if (currentExpandableState == ExpandableCardState.Expanded) 2.dp else 0.dp, Color.Magenta),
+        onClick = onCardClick
+    ) {
+        Column (
+            modifier = Modifier
+        ) {
+            Text(text = "Index: $index, State: $currentExpandableState",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Red)
+                    .padding(8.dp)
+
+            )
+            AnimatedContent(targetState = currentExpandableState, label = "") { state ->
+                if(state ==  ExpandableCardState.Expanded || state == ExpandableCardState.Collapsed) {
+                    AnimatedVisibility(visible = currentExpandableState != ExpandableCardState.Collapsed) {
+                        Text(text = stringResource(R.string.example_body_string),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Blue)
+                                .padding(8.dp)
+                        )
+                    }
+                }
+                else {
+                    AnimatedVisibility(visible = currentExpandableState != ExpandableCardState.Collapsed) {
+                        Text(text = stringResource(R.string.example_body_string),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .background(Color.Blue)
+                                .padding(8.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
 
 @Composable
 fun HelpDialog(onDismissRequest: () -> Unit) {
@@ -181,21 +322,20 @@ fun HelpDialog(onDismissRequest: () -> Unit) {
             modifier = Modifier
                 .size(200.dp)
                 .padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.medium,
         ) {
             Text("Test")
         }
-
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WellnessAppTopBar(
-    currentCardState: ExpandableCardState,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onHelp: () -> Unit
+    onHelp: () -> Unit,
+    onCollapse: () -> Unit,
+    collapseState: Boolean
 ) {
     TopAppBar(modifier = modifier,
         title = {
@@ -205,13 +345,13 @@ fun WellnessAppTopBar(
             )
         },
         actions = {
-            IconButton(onClick = onClick
-            ) {
-                when(currentCardState) {
-                    ExpandableCardState.Expanded ->
+            IconButton(onClick = onCollapse)//onClick
+            {
+                AnimatedContent(targetState = collapseState, label = "") { state ->
+                    if(state)
                         Icon(painter = painterResource(id = R.drawable.collapse_card_24px),
-                            contentDescription = "Expand All Cards")
-                    ExpandableCardState.Collapsed ->
+                        contentDescription = "Expand All Cards")
+                    else
                         Icon(painter = painterResource(id = R.drawable.expand_card_24px),
                             contentDescription = "Collapse All Cards")
                 }
@@ -220,7 +360,6 @@ fun WellnessAppTopBar(
                 Icon(painter = painterResource(id = R.drawable.help_24px),
                     contentDescription = "Help")
             }
-
         },
         colors = TopAppBarDefaults.smallTopAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
@@ -230,101 +369,26 @@ fun WellnessAppTopBar(
 }
 
 
-@OptIn(ExperimentalFoundationApi::class)
+
+
 @Composable
-fun MotivationalList(currentCardState: ExpandableCardState,
-                     onCardExpandClick: () -> Unit,
-                     modifier: Modifier = Modifier) {
-
-    val listState = rememberLazyListState()
-
-    //https://stackoverflow.com/questions/71901039/snap-to-an-index-lazyrow/77005797#77005797
-    val positionInLayout: Density.(Int, Int, Int) -> Int = { _, _, _ ->
-        // This value tells where to snap on the x axis within the viewport
-        // Setting it to 0 results in snapping of the first visible item to the left side (or right side if RTL)
-        0
-    }
-    val snappingLayout = remember(listState) { SnapLayoutInfoProvider(lazyListState = listState, positionInLayout = positionInLayout) }
-    val flingBehavior = rememberSnapFlingBehavior(snappingLayout)
-    val coroutineScope = rememberCoroutineScope()
-
-    LazyColumn(
-        state = listState,
-        modifier = modifier
-            .scale(if (listState.isScrollInProgress && currentCardState.isExpanded) 0.9f else 1f)
-            .animateContentSize(),
-        flingBehavior = flingBehavior,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        items(30) {index ->
-            MotivationalCard(
-                index,
-                currentState = currentCardState,
-                onCardClick = {
-                    coroutineScope.launch {
-                        if(listState.firstVisibleItemIndex != index)
-                            listState.animateScrollToItem(index)
-                        onCardExpandClick.invoke()
-                    }
-                },
-                modifier = Modifier.fillHeightConditionally(currentCardState.isExpanded){
-                    fillParentMaxHeight()
-                }
-            )
+fun MotivationalCardDescription(state: ExpandableCardState) {
+    when(state) {
+        ExpandableCardState.Expanded ->
+            Box(modifier = Modifier) {
+            Spacer(modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Yellow))
         }
-    }
-}
-
-private fun Modifier.fillHeightConditionally(isExpanded: Boolean,
-                                             fillParentMaxHeight: Modifier.() -> Modifier ): Modifier =
-    if(isExpanded)
-        this.fillParentMaxHeight() else this
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MotivationalCard(index: Int, currentState: ExpandableCardState, onCardClick: () -> Unit, modifier: Modifier = Modifier) {
-
-    Card (
-        modifier = modifier
-            .padding(16.dp),
-        onClick = onCardClick
-    ) {
-        Column (
-            modifier = Modifier
-        ) {
-            Row (
-                modifier = Modifier.height(80.dp)
-            ) {
-                Box(modifier = Modifier
-                    .fillMaxSize()
-                    .weight(3f)
-                    .background(Color.Blue)
-                ) {
-                    Text(text = "Index: $index")
-                }
+        ExpandableCardState.Halfway -> {
+            Box(modifier = Modifier) {
                 Spacer(modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f)
-                    .background(Color.Red)
-                )
-            }
-            AnimatedVisibility(visible = currentState.isExpanded) {
-                Box(modifier = Modifier) {
-                    Spacer(modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Yellow))
-                }
-            }
-
+                    .fillMaxHeight(0.5f)
+                    .background(Color.Yellow))}
         }
+        ExpandableCardState.Collapsed -> { }
     }
+
 }
-fun Modifier.conditional(condition : Boolean, modifier : Modifier.() -> Modifier) : Modifier {
-    return if (condition) {
-        then(modifier(Modifier))
-    } else {
-        this
-    }
-}
+
 

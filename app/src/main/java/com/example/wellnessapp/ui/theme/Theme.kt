@@ -86,6 +86,7 @@ fun WellnessAppTheme(
   MaterialTheme(
       colorScheme = colors,
       content = content,
-      typography = Typography
+      typography = Typography,
+      shapes = Shapes
   )
 }
